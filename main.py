@@ -24,7 +24,7 @@ class MusicApp:
         # Update UI with initial state
         self.ui_controller.update_song("No song playing")
         self.ui_controller.update_queue([])
-        self.ui_controller.update_volume(50)
+        #self.ui_controller.update_volume(50)
 
         # Start network receiver in separate thread
         receiver_thread = threading.Thread(target=self.receiver.receive)
