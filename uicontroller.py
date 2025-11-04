@@ -11,8 +11,8 @@ TOUCH_DEVICE = '/dev/input/by-path/platform-3f204000.spi-cs-1-event'
 
 
 class UIController:
-    def __init__(self, audio_controller):
-        self.audio_controller = audio_controller
+    def __init__(self):
+        #self.audio_controller = audio_controller
         self.current_song = "No song playing"
         self.queue = []
         self.volume = 50
@@ -59,6 +59,15 @@ class UIController:
         """Set playing/paused state"""
         self.is_playing = playing
         self._add_ui_event('state_changed')
+
+    def log_debug(self, message: str):
+        """Show debug messages inside the message log area"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        log_entry = f"{timestamp} - [DEBUG] {message}"
+        self.message_log.append(log_entry)
+        if len(self.message_log) > self.max_log_entries:
+            self.message_log.pop(0)
+        self._add_ui_event('message_logged')
 
     def log_connection(self, address):
         """Log a new connection"""
@@ -270,19 +279,19 @@ class UIController:
         """Handle button press actions"""
         if action == 'vol_up':
             new_vol = min(100, self.volume + 10)
-            self.audio_controller.set_volume(new_vol)
+            #self.audio_controller.set_volume(new_vol)
             self.volume = new_vol
         elif action == 'vol_down':
             new_vol = max(0, self.volume - 10)
-            self.audio_controller.set_volume(new_vol)
+            #self.audio_controller.set_volume(new_vol)
             self.volume = new_vol
         elif action == 'pause':
             # Toggle play/pause
             self.is_playing = not self.is_playing
-            if self.is_playing:
-                self.audio_controller.resume()
-            else:
-                self.audio_controller.pause()
+            #if self.is_playing:
+                #self.audio_controller.resume()
+            #else:
+                #self.audio_controller.pause()
         elif action == 'next':
             # Skip to next song
             print("Next button pressed - implement skip functionality")
