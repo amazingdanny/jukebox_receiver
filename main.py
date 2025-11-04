@@ -16,7 +16,7 @@ class MusicApp:
         self.current_queue = []
 
     def start(self):
-        print("Starting Raspberry Music Player...")
+        #print("Starting Raspberry Music Player...")
 
         # Start UI
         self.ui_controller.start()
@@ -31,8 +31,8 @@ class MusicApp:
         receiver_thread.daemon = True
         receiver_thread.start()
 
-        print("Music Player started successfully!")
-        print("UI is running, receiver is listening on port 5000")
+        #print("Music Player started successfully!")
+        #print("UI is running, receiver is listening on port 5000")
 
         # Keep main thread alive
         try:

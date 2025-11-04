@@ -32,7 +32,7 @@ class UIController:
         self.thread.daemon = True
         self.thread.start()
         self.touch_manager.start_monitoring()
-        print("UI Controller started")
+        #print("UI Controller started")
 
     def stop(self):
         """Stop the UI"""
@@ -61,33 +61,36 @@ class UIController:
         self._add_ui_event('state_changed')
 
     def log_debug(self, message: str):
-        """Show debug messages inside the message log area"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        log_entry = f"{timestamp} - [DEBUG] {message}"
-        self.message_log.append(log_entry)
-        if len(self.message_log) > self.max_log_entries:
-            self.message_log.pop(0)
-        self._add_ui_event('message_logged')
+        pass
+        #"""Show debug messages inside the message log area"""
+        #timestamp = datetime.now().strftime("%H:%M:%S")
+        #log_entry = f"{timestamp} - [DEBUG] {message}"
+        #self.message_log.append(log_entry)
+        #if len(self.message_log) > self.max_log_entries:
+            #self.message_log.pop(0)
+        #self._add_ui_event('message_logged')
 
     def log_connection(self, address):
-        """Log a new connection"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        log_entry = f"{timestamp} - Connected: {address}"
-        self.connection_log.append(log_entry)
+        pass
+        #"""Log a new connection"""
+        #timestamp = datetime.now().strftime("%H:%M:%S")
+        #log_entry = f"{timestamp} - Connected: {address}"
+        #self.connection_log.append(log_entry)
         # Keep only recent entries
-        if len(self.connection_log) > self.max_log_entries:
-            self.connection_log.pop(0)
-        self._add_ui_event('connection_logged')
+        #if len(self.connection_log) > self.max_log_entries:
+            #self.connection_log.pop(0)
+        #self._add_ui_event('connection_logged')
 
     def log_message(self, message):
+        pass
         """Log a received message"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        log_entry = f"{timestamp} - Message: {message}"
-        self.message_log.append(log_entry)
+        #timestamp = datetime.now().strftime("%H:%M:%S")
+        #log_entry = f"{timestamp} - Message: {message}"
+        #self.message_log.append(log_entry)
         # Keep only recent entries
-        if len(self.message_log) > self.max_log_entries:
-            self.message_log.pop(0)
-        self._add_ui_event('message_logged')
+        #if len(self.message_log) > self.max_log_entries:
+            #self.message_log.pop(0)
+        #self._add_ui_event('message_logged')
 
     def _add_ui_event(self, event_type):
         """Add UI update event to queue"""
@@ -100,114 +103,90 @@ class UIController:
     def _main_ui(self, stdscr):
         curses.start_color()
         curses.use_default_colors()
-        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(5, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        curses.init_pair(6, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-        curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLACK)
+
+        curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)  # Title
+        curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)  # Current Song
+        curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # Queue
+        curses.init_pair(5, curses.COLOR_WHITE, curses.COLOR_BLUE)  # Buttons
 
         curses.curs_set(0)
         stdscr.nodelay(1)
         stdscr.keypad(True)
 
-        # Track previous UI state to avoid unnecessary redraws
-        prev_state = {
-            "song": None,
-            "queue": None,
-            "volume": None,
-            "is_playing": None,
-            "connection_log": [],
-            "message_log": []
-        }
-
         buttons = [
-            {"label": " VOL- ", "action": "vol_down", "x": 0, "y": 0, "width": 8},
-            {"label": " VOL+ ", "action": "vol_up", "x": 0, "y": 0, "width": 8},
-            {"label": " PAUSE ", "action": "pause", "x": 0, "y": 0, "width": 8},
-            {"label": " NEXT ", "action": "next", "x": 0, "y": 0, "width": 8},
-            {"label": " CLEAR ", "action": "clear_logs", "x": 0, "y": 0, "width": 8},
+            {"label": "[ PREV ]", "action": "prev"},
+            {"label": "[ PAUSE ]", "action": "pause"},
+            {"label": "[ NEXT ]", "action": "next"},
+            {"label": "[ VOL- ]", "action": "vol_down"},
+            {"label": "[ VOL+ ]", "action": "vol_up"}
         ]
 
         while self.running:
             height, width = stdscr.getmaxyx()
+            stdscr.erase()
 
-            # Only redraw when something changed
-            if (self.current_song != prev_state["song"] or
-                    self.queue != prev_state["queue"] or
-                    self.volume != prev_state["volume"] or
-                    self.is_playing != prev_state["is_playing"] or
-                    self.connection_log != prev_state["connection_log"] or
-                    self.message_log != prev_state["message_log"]):
-
-                prev_state["song"] = self.current_song
-                prev_state["queue"] = list(self.queue)
-                prev_state["volume"] = self.volume
-                prev_state["is_playing"] = self.is_playing
-                prev_state["connection_log"] = list(self.connection_log)
-                prev_state["message_log"] = list(self.message_log)
-
-                stdscr.clear()
-
-                # --- (Draw everything exactly like your original code) ---
-
-                title = "RASPBERRY MUSIC PLAYER"
-                stdscr.addstr(1, (width - len(title)) // 2, title, curses.color_pair(1) | curses.A_BOLD)
-
-                status = "▶ PLAYING" if self.is_playing else "⏸ PAUSED"
-                status_color = curses.color_pair(2) if self.is_playing else curses.color_pair(4)
-                stdscr.addstr(3, (width - len(status)) // 2, status, status_color | curses.A_BOLD)
-
-                song_display = f"Now Playing: {self.current_song}"
-                stdscr.addstr(5, 2, song_display, curses.color_pair(2))
-
-                vol_bar = "[" + "█" * (self.volume // 10) + " " * (10 - self.volume // 10) + "]"
-                volume_display = f"Volume: {self.volume:3d}% {vol_bar}"
-                stdscr.addstr(7, 2, volume_display, curses.color_pair(4))
-
-                stdscr.addstr(9, 2, "Queue:", curses.A_BOLD)
-                if self.queue:
-                    for i, song in enumerate(self.queue):
-                        stdscr.addstr(10 + i, 2, f"  {i + 1}. {song}", curses.color_pair(3))
-                    queue_y = 10 + len(self.queue)
-                else:
-                    stdscr.addstr(10, 2, "  No songs in queue", curses.color_pair(4))
-                    queue_y = 11
-
-                # Connection logs
-                stdscr.addstr(queue_y + 1, 2, "CONNECTIONS:", curses.color_pair(6) | curses.A_BOLD)
-                for i, line in enumerate(reversed(self.connection_log[-5:])):
-                    stdscr.addstr(queue_y + 2 + i, 2, f"  {line}", curses.color_pair(6))
-                conn_y = queue_y + 2 + min(len(self.connection_log), 5)
-
-                # Message logs
-                stdscr.addstr(conn_y + 1, 2, "MESSAGES:", curses.color_pair(7) | curses.A_BOLD)
-                for i, line in enumerate(reversed(self.message_log[-5:])):
-                    truncated = line[:width - 4]
-                    stdscr.addstr(conn_y + 2 + i, 2, f"  {truncated}", curses.color_pair(7))
-
-                # Draw buttons
-                button_spacing = width // (len(buttons) + 1)
-                for i, button in enumerate(buttons):
-                    button["x"] = button_spacing * (i + 1) - button["width"] // 2
-                    button["y"] = height - 3
-                    stdscr.addstr(button["y"], button["x"], button["label"], curses.color_pair(5) | curses.A_BOLD)
-
+            if height < 20 or width < 50:
+                stdscr.addstr(0, 0, "Screen too small", curses.A_BOLD)
                 stdscr.refresh()
+                time.sleep(0.5)
+                continue
 
-            # ✅ Read touch/keyboard regardless of UI changes
-            touch = self.touch_manager.get_touch_event()
-            if touch:
-                x, y = self._scale_touch_coordinates(touch[1], touch[2], width, height)
-                for button in buttons:
-                    if button["x"] <= x < button["x"] + button["width"] and button["y"] == y:
-                        self._handle_button_press(button["action"])
+            # Title
+            title = "🎵 RASPBERRY MUSIC PLAYER 🎵"
+            stdscr.addstr(1, (width - len(title)) // 2, title, curses.color_pair(1) | curses.A_BOLD)
 
-            key = stdscr.getch()
-            if key in [ord('q'), ord('Q')]:
-                break
+            # --- Current Song Box ---
+            box_width = width // 2
+            box_height = 5
+            box_x = (width - box_width) // 2
+            box_y = 4
 
+            # Draw border
+            try:
+                for x in range(box_x, box_x + box_width):
+                    stdscr.addch(box_y, x, curses.ACS_HLINE)
+                    stdscr.addch(box_y + box_height, x, curses.ACS_HLINE)
+                for y in range(box_y, box_y + box_height + 1):
+                    stdscr.addch(y, box_x, curses.ACS_VLINE)
+                    stdscr.addch(y, box_x + box_width, curses.ACS_VLINE)
+                stdscr.addch(box_y, box_x, curses.ACS_ULCORNER)
+                stdscr.addch(box_y, box_x + box_width, curses.ACS_URCORNER)
+                stdscr.addch(box_y + box_height, box_x, curses.ACS_LLCORNER)
+                stdscr.addch(box_y + box_height, box_x + box_width, curses.ACS_LRCORNER)
+            except curses.error:
+                pass
+
+            # Song status text inside box
+            status = "PLAYING" if self.is_playing else "PAUSED"
+            song_display = self.current_song or "No song playing"
+            song_display = song_display[:box_width - 4]  # Trim for long names
+
+            stdscr.addstr(box_y + 1, box_x + 2, f"Status: {status}", curses.color_pair(2) | curses.A_BOLD)
+            stdscr.addstr(box_y + 2, box_x + 2, f"Now Playing:", curses.A_BOLD)
+            stdscr.addstr(box_y + 3, box_x + 2, song_display, curses.color_pair(2) | curses.A_BOLD)
+
+            # --- Queue Section (Left) ---
+            queue_y = box_y + box_height + 2
+            stdscr.addstr(queue_y, 2, "Next Up:", curses.color_pair(3) | curses.A_BOLD)
+            if self.queue:
+                for i, song in enumerate(self.queue[:5]):
+                    display = f"{i + 1}. {song}"
+                    stdscr.addstr(queue_y + i + 1, 2, display[:width // 3], curses.color_pair(3))
+            else:
+                stdscr.addstr(queue_y + 1, 2, "No songs", curses.color_pair(3))
+
+            # --- Buttons (Centered Below Song Box) ---
+            btn_y = box_y + box_height + 6
+            total_len = sum(len(b["label"]) for b in buttons) + (len(buttons) - 1) * 3
+            start_x = (width - total_len) // 2
+
+            x = start_x
+            for b in buttons:
+                stdscr.addstr(btn_y, x, b["label"], curses.color_pair(5) | curses.A_BOLD)
+                b["x"], b["y"], b["width"] = x, btn_y, len(b["label"])
+                x += len(b["label"]) + 3
+
+            stdscr.refresh()
             time.sleep(0.05)
 
     def _scale_touch_coordinates(self, x, y, screen_width, screen_height):
@@ -242,12 +221,11 @@ class UIController:
                 #self.audio_controller.pause()
         elif action == 'next':
             # Skip to next song
-            print("Next button pressed - implement skip functionality")
+            pass
         elif action == 'clear_logs':
             # Clear all logs
             self.connection_log.clear()
             self.message_log.clear()
-            print("Logs cleared")
 
 
 class TouchscreenManager:
@@ -266,7 +244,7 @@ class TouchscreenManager:
     def _monitor_touch(self):
         try:
             device = InputDevice(self.device_path)
-            print(f"Touchscreen connected: {device.name}")
+            #print(f"Touchscreen connected: {device.name}")
 
             for event in device.read_loop():
                 if not self.running:
@@ -288,7 +266,7 @@ class TouchscreenManager:
                             self.touch_queue.put(('touch', self.last_x, self.last_y))
 
         except Exception as e:
-            print(f"Touchscreen error: {e}")
+            pass
 
     def get_touch_event(self):
         try:

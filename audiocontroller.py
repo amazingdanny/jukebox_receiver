@@ -23,13 +23,13 @@ class AudioController:
         while True:
             filepath = self.queue.get()
             song = self.queue2.get()
-            if self.ui_controller:
-                self.ui_controller.log_debug(f"Got from queue: {song} -> {filepath}")
+            #if self.ui_controller:
+                #self.ui_controller.log_debug(f"Got from queue: {song} -> {filepath}")
 
             self.current_file = filepath
             self.current_song = song
-            if self.ui_controller:
-                self.ui_controller.log_debug(f"Set current_song = {self.current_song}")
+            #if self.ui_controller:
+                #self.ui_controller.log_debug(f"Set current_song = {self.current_song}")
 
             if self.ui_controller:
                 self.ui_controller.set_playing_state(True)
@@ -39,15 +39,15 @@ class AudioController:
             self._play_file(filepath)
             self._wait_until_finished()
             #self.ui_controller.log_connection(f"Now stopping playing: {song}")
-            if self.ui_controller:
-                self.ui_controller.log_debug(f"Finished playing: {song}, skip={self.skip_flag.is_set()}")
+            #if self.ui_controller:
+                #self.ui_controller.log_debug(f"Finished playing: {song}, skip={self.skip_flag.is_set()}")
 
             self.queue.task_done()
 
             if not self.skip_flag.is_set():
                 self.current_song = None
-                if self.ui_controller:
-                    self.ui_controller.log_debug("Cleared current_song")
+                #if self.ui_controller:
+                    #self.ui_controller.log_debug("Cleared current_song")
 
             if self.ui_controller:
                 self.ui_controller.set_playing_state(False)
@@ -77,7 +77,6 @@ class AudioController:
     def _play_file(self, filepath):
         """Play a file - DO NOT STOP CURRENT PLAYBACK"""
         with self.lock:
-            print(f"Loading and playing: {filepath}")
 
             # NO STOP CALL HERE! Just load and play the new file
             media = vlc.Media(filepath)
@@ -89,19 +88,16 @@ class AudioController:
     def _wait_until_finished(self):
         """Block until the current track actually starts and finishes."""
         self.skip_flag.clear()
-        print("Waiting for current track to finish...")
 
         # Wait for VLC to start playback (it’s async)
         started = False
         for _ in range(100):  # up to ~10 seconds
             if self.is_playing():
                 started = True
-                print("Playback started.")
                 break
             time.sleep(0.1)
 
         if not started:
-            print("Warning: VLC never reported playback started.")
             return  # avoid locking up the thread
 
         # Wait while it's playing
@@ -112,27 +108,20 @@ class AudioController:
 
         # Handle skip request or stop when finished
         if self.skip_flag.is_set():
-            print("Track skipped.")
             with self.lock:
                 if self.player:
                     self.player.stop()
-        else:
-            print("Playback finished normally.")
 
     def play(self, filepath, file_to_play):
         """Add a file to the queue."""
-        print(f"Adding to queue: {filepath}")
-        print(f"Queue size before: {self.queue.qsize()}")
         self.queue.put(filepath)
         self.queue2.put(file_to_play)
         #if not self.is_playing():
             #self.current_song = file_to_play
 
-        print(f"Queue size after: {self.queue.qsize()}")
 
     def stop(self):
         """Stop playback and clear queue."""
-        print("Stopping all playback and clearing queue")
         with self.lock:
             if self.player and self.player.is_playing():
                 self.player.stop()
@@ -155,7 +144,6 @@ class AudioController:
 
     def skip(self):
         """Skip the current song and move to the next one in the queue."""
-        print("Skipping current song")
         self.skip_flag.set()
 
     def is_playing(self):
