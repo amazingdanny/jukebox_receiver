@@ -31,33 +31,20 @@ class RaspberryReceiver:
                     if not data:
                         continue
                     message = data.decode('utf-8').strip()
-
-                    # Log message to UI
-                    #if self.ui_controller:
-                        #self.ui_controller.log_message(message)
-
                     processed_message = self.handle_message(message)
-                    matching_files = self.find_matching_files(processed_message)
-                    if matching_files:
-                        file_to_play = matching_files[0]  # Get the first (and only) file
-                        full_path = os.path.join(self.folder_path, file_to_play)
-
-                        # Update UI with current song
-                        #if self.ui_controller:
-                            #self.ui_controller.update_song(file_to_play)
-
-                        if processed_message == "K1":
-                            if self.ui_controller:
-                                self.ui_controller.set_playing_state(False)
-                            # Add your pause logic here
-                        else:
-                            self.audio_controller.play(full_path, file_to_play)
-                            #if self.ui_controller:
-                                #self.ui_controller.set_playing_state(True)
-                                #self.ui_controller.update_song(self.audio_controller.get_current_song())
-                                #self.ui_controller.update_queue(self.audio_controller.get_current_queue())
-                    else:
-                        pass
+                    match message:
+                        case 'K1':
+                            self.audio_controller.skip()
+                        case 'K2':
+                            self.audio_controller.pause()
+                        case 'K3':
+                            self.audio_controller.resume()
+                        case _:
+                            matching_files = self.find_matching_files(processed_message)
+                            if matching_files:
+                                file_to_play = matching_files[0]  # Get the first (and only) file
+                                full_path = os.path.join(self.folder_path, file_to_play)
+                                self.audio_controller.play(full_path, file_to_play)
 
     def handle_message(self, message):
         # Extract first two characters if message is longer

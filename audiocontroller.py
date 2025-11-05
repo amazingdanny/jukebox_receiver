@@ -18,9 +18,11 @@ class AudioController:
         self.current_file = None
         self.thread = threading.Thread(target=self._playback_loop, daemon=True)
         self.thread.start()
+        self.paused_song = None
 
     def _playback_loop(self):
         while True:
+            self.skip_flag.clear()
             filepath = self.queue.get()
             song = self.queue2.get()
             #if self.ui_controller:
@@ -107,10 +109,6 @@ class AudioController:
             time.sleep(0.2)
 
         # Handle skip request or stop when finished
-        if self.skip_flag.is_set():
-            with self.lock:
-                if self.player:
-                    self.player.stop()
 
     def play(self, filepath, file_to_play):
         """Add a file to the queue."""
@@ -134,6 +132,7 @@ class AudioController:
         """Pause current playback."""
         with self.lock:
             if self.player:
+                self.paused_song = self.current_song
                 self.player.pause()
 
     def resume(self):
@@ -141,6 +140,8 @@ class AudioController:
         with self.lock:
             if self.player:
                 self.player.play()
+                self.ui_controller.set_playing_state(True)
+                self.ui_controller.update_song(self.paused_song)
 
     def skip(self):
         """Skip the current song and move to the next one in the queue."""
