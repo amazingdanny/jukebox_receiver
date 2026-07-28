@@ -10,6 +10,7 @@ class RaspberryReceiver:
         self.folder_path = folder_path
         self.audio_controller = audio_controller
         self.ui_controller = ui_controller
+        self.is_paused = False
 
     def receive(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
@@ -25,12 +26,18 @@ class RaspberryReceiver:
                     message = data.decode('utf-8').strip()
                     processed_message = self.handle_message(message)
                     # key commands
-                    if message == 'K1':
+                    if message == 'K01':
                         self.audio_controller.skip()
-                    elif message == 'K2':
-                        self.audio_controller.pause()
-                    elif message == 'K3':
+                    elif message == 'K02':
+                        self.audio_controller.handle_pause()
+                    elif message == 'K03':
                         self.audio_controller.resume()
+                    elif message == 'K04':
+                        self.audio_controller.clear_queue()
+                    elif message == 'K05':
+                        self.audio_controller.play_random_song(self.folder_path)
+                    elif message == 'K06':
+                        self.audio_controller.queue_random_songs(self.folder_path)
                     else:
                         matching_files = self.find_matching_files(processed_message)
                         if matching_files:

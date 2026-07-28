@@ -1,8 +1,10 @@
+import os
+import random
 import vlc
 import threading
 import time
 from queue import Queue
-from PyQt5.QtCore import QTimer
+from kivy.clock import Clock, mainthread
 
 
 class AudioController:
@@ -11,20 +13,32 @@ class AudioController:
         self.queue = Queue()
         self.queue2 = Queue()
         self.current_song = None
+        self.display_song = None
         self.current_file = None
         self.player = vlc.MediaPlayer()
 
-        # Optional: set specific audio output device
+        # Optional: prefer ALSA output, but do not force a specific device
         try:
-            self.player.audio_output_set("alsa")
             self.player.audio_output_device_set("alsa", "hw:1,0")
-            #self.player.audio_output_device_set(None, "hw:1,0")
         except Exception:
             pass
+
+        self.volume = 20
+        try:
+            self.player.audio_set_volume(self.volume)
+        except Exception:
+            pass
+
+        if self.ui_controller:
+            self.ui_controller.update_volume(self.volume)
+
 
         self.lock = threading.Lock()
         self.skip_flag = threading.Event()
         self.paused_song = None
+        self.is_paused = False  # Track pause state
+        self._original_song = None  # Store clean song name before "Paused: " prefix
+        self.display_song = None  # For displaying pause status
 
         # start playback loop in background
         self.thread = threading.Thread(target=self._playback_loop, daemon=True)
@@ -36,51 +50,64 @@ class AudioController:
     def _playback_loop(self):
         while True:
             self.skip_flag.clear()
+            self.is_paused = False
             filepath = self.queue.get()
             song = self.queue2.get()
 
             self.current_file = filepath
             self.current_song = song
 
-            # ✅ safe UI updates on main thread
+            # ✅ safe UI updates on main thread using Kivy's mainthread decorator
             if self.ui_controller:
                 print("yes ui controller")
-                #QTimer.singleShot(0, lambda s=song: self.ui_controller.update_song(s))
                 self.ui_controller.update_song(self.current_song)
-                #self.ui_controller.set_playing_state(True)
                 self.ui_controller.update_queue(self.get_current_queue())
             else:
                 print("no ui controller")
 
             # play file
             self._play_file(filepath)
+            self.set_volume(self.volume)
             self._wait_until_finished()
             self.queue.task_done()
 
             if not self.skip_flag.is_set():
-                self.current_song = None
+                self.current_song = "No song playing"
 
             # ✅ update UI when playback finishes
             if self.ui_controller:
-                QTimer.singleShot(0, lambda: self.ui_controller.set_playing_state(False))
-                QTimer.singleShot(0, lambda: self.ui_controller.update_song(self.current_song))
-                QTimer.singleShot(0, lambda: self.ui_controller.update_queue(self.get_current_queue()))
+                self.ui_controller.update_song(self.current_song)
+                self.ui_controller.update_queue(self.get_current_queue())
 
     # ----------------------------------------------------------------------
     # Helper methods
     # ----------------------------------------------------------------------
     def _play_file(self, filepath):
         with self.lock:
+            # Stop any current playback first
+            try:
+                if self.player.is_playing():
+                    self.player.stop()
+                    time.sleep(0.2)  # Give VLC time to stop
+            except Exception:
+                pass
+            
+            # Create new media and set it
             media = vlc.Media(filepath)
             self.player.set_media(media)
             try:
                 self.player.audio_output_set("alsa")
-                self.player.audio_output_device_set("alsa", "hw:1,0")
-                #self.player.audio_output_device_set(None, "hw:1,0")
             except Exception:
                 pass
+            
+            # Play with a small delay to ensure initialization
+            time.sleep(0.1)
             self.player.play()
-            print(f"Playing file: {filepath}")
+            try:
+                self.player.audio_set_volume(self.volume)
+            except Exception:
+                pass
+            print(f"Playing file: {filepath} at volume {self.volume}%")
 
     def _wait_until_finished(self):
         self.skip_flag.clear()
@@ -93,10 +120,17 @@ class AudioController:
                 break
             time.sleep(0.1)
         if not started:
+            print(f"Playback never started for: {self.current_file}")
             return
 
         # update queue periodically while playing
-        while self.is_playing() and not self.skip_flag.is_set():
+        # Exit when playback stops and not paused, or when skip is pressed
+        while not self.skip_flag.is_set():
+            if self.is_paused:
+                time.sleep(0.2)
+                continue
+            if not self.is_playing():
+                break
             if self.ui_controller:
                 self.ui_controller.update_queue(self.get_current_queue())
             time.sleep(0.2)
@@ -125,28 +159,142 @@ class AudioController:
                 self.queue2.queue.clear()
         self.skip_flag.set()
 
+    def handle_pause(self):
+        if self.is_paused:
+            self.resume()
+        else:
+            if self.player and self.player.is_playing():
+                self.pause()
+
     def pause(self):
         with self.lock:
             if self.player:
-                self.paused_song = self.current_song
-                try:
-                    self.player.pause()
-                except Exception:
-                    pass
+                
+                    # Store the ORIGINAL clean song name
+                    self._original_song = self.current_song
+                    # Remove any existing "Paused: " prefix
+                    if self._original_song and self._original_song.startswith("Paused: "):
+                        self._original_song = self._original_song.replace("Paused: ", "", 1)
+                    
+                    self.paused_song = self._original_song
+                    # Set display version with "Paused: " prefix
+                    self.display_song = f"Paused: {self._original_song}"
+                    self.is_paused = True
+                    
+                    print(f"Paused. Original: {self._original_song}, Display: {self.display_song}")
+                    
+                    # Update UI to show paused state
+                    if self.ui_controller:
+                        self.ui_controller.update_song(self.display_song)
+                    
+                    try:
+                        self.player.pause()
+                    except Exception:
+                        pass
 
     def resume(self):
         with self.lock:
             if self.player:
                 try:
                     self.player.play()
+                    self.is_paused = False
+                    # Use the clean original song name
+                    self.current_song = self._original_song
+                    
+                    print(f"Resumed. Current song: {self.current_song}")
+                    
                     if self.ui_controller:
-                        QTimer.singleShot(0, lambda: self.ui_controller.set_playing_state(True))
-                        QTimer.singleShot(0, lambda s=self.paused_song: self.ui_controller.update_song(s))
-                except Exception:
-                    pass
+                        self.ui_controller.set_playing_state(True)
+                        self.ui_controller.update_song(self.current_song)
+                        self.ui_controller.update_queue(self.get_current_queue())
+                        
+                except Exception as e:
+                    print(f"Error resuming: {e}")
 
     def skip(self):
+        if self.queue.empty():
+            self.current_song = "No song playing"
+            self.stop()
         self.skip_flag.set()
+
+    def clear_queue(self):
+        with self.queue.mutex:
+            self.queue.queue.clear()
+            self.queue2.queue.clear()
+    
+    def play_random_song(self, usb_path):
+        """Play one random audio file from the mounted USB path."""
+        if not usb_path:
+            print("USB path is required for random song playback.")
+            return None
+
+        song_files = self._find_audio_files(usb_path)
+        if not song_files:
+            print(f"No audio files found in USB path: {usb_path}")
+            return None
+
+        chosen_file = random.choice(song_files)
+        chosen_name = os.path.basename(chosen_file)
+
+        # Stop any current playback and clear queued songs before playing the random track
+        self.stop()
+        self.play(chosen_file, chosen_name)
+
+        print(f"Playing random USB song: {chosen_name}")
+        return chosen_file
+
+    def queue_random_songs(self, usb_path, count=10):
+        """Add a set of random audio files from the mounted USB path to the playback queue."""
+        if not usb_path:
+            print("USB path is required for random queue playback.")
+            return []
+
+        song_files = self._find_audio_files(usb_path)
+        if not song_files:
+            print(f"No audio files found in USB path: {usb_path}")
+            return []
+
+        # Use a shuffled list so we queue up to `count` unique random songs.
+        chosen_files = random.sample(song_files, min(count, len(song_files)))
+
+        # Keep current playback intact and queue the new random songs.
+        queued_names = []
+        for filepath in chosen_files:
+            filename = os.path.basename(filepath)
+            self.play(filepath, filename)
+            queued_names.append(filename)
+
+        print(f"Queued {len(queued_names)} random USB songs: {queued_names}")
+        return chosen_files
+
+    def _find_audio_files(self, directory):
+        supported_extensions = (".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac")
+        found_files = []
+
+        for root, _, files in os.walk(directory):
+            for name in files:
+                if name.lower().endswith(supported_extensions):
+                    found_files.append(os.path.join(root, name))
+
+        return found_files
+
+    def volume_up(self):
+        self.set_volume(self.volume + 5)
+
+    def volume_down(self):
+        self.set_volume(self.volume - 5)
+
+    def set_volume(self, volume):
+        with self.lock:
+            if self.player:
+                volume = max(0, min(100, int(volume)))
+                self.volume = volume
+                try:
+                    self.player.audio_set_volume(self.volume)
+                except Exception:
+                    pass
+                if self.ui_controller:
+                    self.ui_controller.update_volume(self.volume)
 
     def is_playing(self):
         with self.lock:
@@ -165,10 +313,4 @@ class AudioController:
         with self.queue.mutex:
             return list(self.queue.queue)
 
-    def set_volume(self, volume):
-        with self.lock:
-            if self.player:
-                try:
-                    self.player.audio_set_volume(int(volume))
-                except Exception:
-                    pass
+

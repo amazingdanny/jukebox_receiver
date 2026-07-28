@@ -1,12 +1,18 @@
 import os
 import sys
 import threading
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt
 import signal
-signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-os.environ.setdefault("QT_QPA_PLATFORM", os.environ.get("QT_QPA_PLATFORM", "linuxfb"))
+from kivy.app import App
+from kivy.core.window import Window
+from kivy.config import Config
+
+# Configure Kivy for Raspberry Pi
+Config.set('graphics', 'fullscreen', '1')  # True fullscreen
+Config.set('graphics', 'width', '800')
+Config.set('graphics', 'height', '480')
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 from uicontroller import MusicPlayerUI
 from audiocontroller import AudioController
@@ -14,42 +20,53 @@ from receiver import RaspberryReceiver
 
 LISTEN_IP = "0.0.0.0"
 LISTEN_PORT = 5000
-MUSIC_FOLDER = "/mnt/usb"
+MUSIC_FOLDER = "/media/daniel/JUKEBOX"
+
+
+class MusicPlayerApp(App):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.ui = None
+        self.audio = None
+        self.receiver = None
+
+    def build(self):
+        # Create UI
+        self.ui = MusicPlayerUI()
+        
+        # Create AudioController with UI reference
+        self.audio = AudioController(self.ui)
+        
+        # Give UI reference to audio controller so buttons work
+        self.ui.ui_controller = self.audio
+        
+        # Bind keyboard events
+        Window.bind(on_keyboard=self.ui.on_keyboard)
+        
+        # Start receiver in background
+        self.receiver = RaspberryReceiver(LISTEN_IP, LISTEN_PORT, MUSIC_FOLDER, self.audio, self.ui)
+        if self.receiver and self.ui and self.audio:
+            print("All components initialized successfully.")
+        
+        t = threading.Thread(target=self.receiver.receive, daemon=True)
+        t.start()
+        
+        return self.ui
+
+    def on_stop(self):
+        """Called when the app is closing."""
+        try:
+            if self.audio:
+                self.audio.stop()
+        except Exception as e:
+            print(f"Error stopping audio: {e}")
+        return True
+
 
 def main():
-    app = QApplication(sys.argv)
+    app = MusicPlayerApp()
+    app.run()
 
-    # 1) Create UI
-    ui = MusicPlayerUI()
-
-    # 2) Create AudioController with UI reference
-    audio = AudioController(ui)
-
-    # 3) Attach controller reference to UI so keyboard quit works
-
-    # 4) Show UI, focus keyboard
-    ui.showFullScreen()
-    ui.setFocusPolicy(Qt.StrongFocus)
-    ui.setFocus()
-    ui.grabKeyboard()
-
-    # 5) Start receiver in background
-    receiver = RaspberryReceiver(LISTEN_IP, LISTEN_PORT, MUSIC_FOLDER, audio, ui)
-    if receiver and ui and audio:
-        print("All components initialized successfully.")
-    t = threading.Thread(target=receiver.receive, daemon=True)
-    t.start()
-
-    # 6) Run Qt event loop
-    exit_code = app.exec_()
-
-    # stop audio cleanly
-    try:
-        audio.stop()
-    except Exception:
-        pass
-
-    sys.exit(exit_code)
 
 if __name__ == "__main__":
     main()

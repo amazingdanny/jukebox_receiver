@@ -1,0 +1,35 @@
+[[1;32mINFO[0m   ] [Logger      ] Record log in /home/daniel/.kivy/logs/kivy_26-06-15_2.txt
+[[1;32mINFO[0m   ] [Kivy        ] v2.3.1
+[[1;32mINFO[0m   ] [Kivy        ] Installed at "/home/daniel/Desktop/jukebox_receiver/venv/lib/python3.13/site-packages/kivy/__init__.py"
+[[1;32mINFO[0m   ] [Python      ] v3.13.5 (main, Jun 25 2025, 18:55:22) [GCC 14.2.0]
+[[1;32mINFO[0m   ] [Python      ] Interpreter at "/home/daniel/Desktop/jukebox_receiver/venv/bin/python"
+[[1;32mINFO[0m   ] [Logger      ] Purge log fired. Processing...
+[[1;32mINFO[0m   ] [Logger      ] Purge finished!
+[[1;32mINFO[0m   ] [Factory     ] 195 symbols loaded
+[[1;32mINFO[0m   ] [Image       ] Providers: img_tex, img_dds, img_sdl2 (img_pil, img_ffpyplayer ignored)
+[[1;32mINFO[0m   ] [Window      ] Provider: sdl2(['window_egl_rpi'] ignored)
+[[1;32mINFO[0m   ] [GL          ] Using the "OpenGL" graphics system
+[[1;32mINFO[0m   ] [GL          ] Backend used <sdl2>
+[[1;32mINFO[0m   ] [GL          ] OpenGL version <b'2.1 Mesa 25.0.7-2+rpt4'>
+[[1;32mINFO[0m   ] [GL          ] OpenGL vendor <b'Broadcom'>
+[[1;32mINFO[0m   ] [GL          ] OpenGL renderer <b'VC4 V3D 2.1'>
+[[1;32mINFO[0m   ] [GL          ] OpenGL parsed version: 2, 1
+[[1;32mINFO[0m   ] [GL          ] Shading version <b'1.20'>
+[[1;32mINFO[0m   ] [GL          ] Texture max size <2048>
+[[1;32mINFO[0m   ] [GL          ] Texture max units <16>
+[[1;32mINFO[0m   ] [Window      ] auto add sdl2 input provider
+[[1;32mINFO[0m   ] [Window      ] virtual keyboard not allowed, single mode, not docked
+[[1;32mINFO[0m   ] [Text        ] Provider: sdl2
+Unable to connect to X server
+[[1;32mINFO[0m   ] [ProbeSysfs  ] device match: /dev/input/event2
+[[1;32mINFO[0m   ] [MTD         ] Read event from </dev/input/event2>
+[[1;32mINFO[0m   ] [Base        ] Start application main loop
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> range position X is 0 - 799
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> range position Y is 0 - 479
+[[1;32mINFO[0m   ] [GL          ] NPOT texture support is available
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> range touch major is 0 - 0
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> range touch minor is 0 - 0
+[[1;32mINFO[0m   ] [_on_update_song called with] 'No song playing'
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> range pressure is 0 - 255
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> axes inversion: X is 0, Y is 0
+[[1;32mINFO[0m   ] [MTD         ] </dev/input/event2> rotation set to 0
