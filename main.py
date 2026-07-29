@@ -1,3 +1,10 @@
+from kivy.config import Config
+
+
+Config.set('graphics', 'fullscreen', '1')
+Config.set('graphics', 'borderless', '1')
+Config.set('graphics', 'resizable', '0')
+
 import os
 import sys
 import threading

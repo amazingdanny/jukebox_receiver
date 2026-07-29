@@ -1,3 +1,5 @@
+
+
 import logging
 from typing import List, Optional
 import os
@@ -8,16 +10,20 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
+from kivy.config import Config
+from kivy.core.window import Window
 from kivy.core.window import Window
 from kivy.core.text import LabelBase
 from kivy.clock import Clock, mainthread
-from kivy.config import Config
 from kivy.graphics import Color, Rectangle
 
-# Configure Kivy for Raspberry Pi framebuffer
-Config.set('graphics', 'fullscreen', 'fake')
-Config.set('graphics', 'width', '800')
-Config.set('graphics', 'height', '480')
+#Window.fullscreen = 'fake'
+#Window.size = (1920, 1080)
+def show_size(dt):
+    print("Window size:", Window.size)
+    print("Window system size:", Window.system_size)
+
+Clock.schedule_once(show_size, 2)
 
 log = logging.getLogger("kivy_ui")
 logging.basicConfig(level=logging.INFO)
