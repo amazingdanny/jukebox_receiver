@@ -19,7 +19,7 @@ class AudioController:
 
         # Optional: prefer ALSA output, but do not force a specific device
         try:
-            self.player.audio_output_device_set("alsa", "hw:1,0")
+            self.player.audio_output_device_set("alsa", "hw:2,0")
         except Exception:
             pass
 

@@ -2,6 +2,7 @@ import os
 import sys
 import threading
 import signal
+import subprocess
 
 from kivy.app import App
 from kivy.core.window import Window
@@ -18,9 +19,21 @@ from uicontroller import MusicPlayerUI
 from audiocontroller import AudioController
 from receiver import RaspberryReceiver
 
+def find_jukebox():
+    result = subprocess.run(
+        ["findmnt", "-rn", "-S", "LABEL=JUKEBOX", "-o", "TARGET"],
+        capture_output=True,
+        text=True
+    )
+    mount_point = result.stdout.strip()
+    if mount_point:
+        print(f"mount point: {mount_point}")
+        return mount_point
+    return None
+
 LISTEN_IP = "0.0.0.0"
 LISTEN_PORT = 5000
-MUSIC_FOLDER = "/media/daniel/JUKEBOX"
+MUSIC_FOLDER = find_jukebox()
 
 
 class MusicPlayerApp(App):

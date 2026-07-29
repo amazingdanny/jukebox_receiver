@@ -19,12 +19,15 @@ class RaspberryReceiver:
             server.listen()
             while True:
                 conn, addr = server.accept()
+                print(f"Connected by {addr}")
                 with conn:
                     data = conn.recv(1024)
+                    print(f"Received data: {data}")
                     if not data:
                         continue
                     message = data.decode('utf-8').strip()
                     processed_message = self.handle_message(message)
+                    print(f"message : {message}")
                     # key commands
                     if message == 'K01':
                         self.audio_controller.skip()
@@ -40,6 +43,7 @@ class RaspberryReceiver:
                         self.audio_controller.queue_random_songs(self.folder_path)
                     else:
                         matching_files = self.find_matching_files(processed_message)
+                        print(f"found matching files {matching_files}")
                         if matching_files:
                             print(f"Found matching files: {matching_files}")
                             file_to_play = matching_files[0]
