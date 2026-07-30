@@ -29,7 +29,11 @@ class RaspberryReceiver:
                     processed_message = self.handle_message(message)
                     print(f"message : {message}")
                     # key commands
-                    if message == 'K01':
+                    if message == '00':
+                        self.ui_controller.set_disconnected()
+                    elif message == '11':
+                        self.ui_controller.set_connected()
+                    elif message == 'K01':
                         self.audio_controller.skip()
                     elif message == 'K02':
                         self.audio_controller.handle_pause()

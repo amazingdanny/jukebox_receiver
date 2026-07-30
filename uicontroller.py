@@ -40,6 +40,7 @@ class MusicPlayerUI(BoxLayout):
         self.ui_controller = None
         self.is_paused = False
         self.cpu_temp_label = None
+        self.connection_status_label = None
 
         # Set background color
         with self.canvas.before:
@@ -81,6 +82,17 @@ class MusicPlayerUI(BoxLayout):
         )
         self.cpu_temp_label.bind(size=self._update_label_text_size)
         header.add_widget(self.cpu_temp_label)
+
+        self.connection_status_label = Label(
+            text='● Disconnected',
+            font_size='16sp',
+            color=(0.95, 0.2, 0.2, 1),
+            size_hint_x=0.22,
+            halign='right',
+            valign='middle'
+        )
+        self.connection_status_label.bind(size=self._update_label_text_size)
+        header.add_widget(self.connection_status_label)
 
         self.add_widget(header)
 
@@ -201,6 +213,18 @@ class MusicPlayerUI(BoxLayout):
     def set_playing_state(self, is_playing: bool):
         """Optional method for UI state management."""
         pass
+
+    def set_connected(self):
+        """Show the connection status as connected."""
+        if self.connection_status_label:
+            self.connection_status_label.text = '● Connected'
+            self.connection_status_label.color = (0.2, 0.95, 0.35, 1)
+
+    def set_disconnected(self):
+        """Show the connection status as disconnected."""
+        if self.connection_status_label:
+            self.connection_status_label.text = '● Disconnected'
+            self.connection_status_label.color = (0.95, 0.2, 0.2, 1)
 
     # -------------------------
     # UI update methods (run on main thread)
