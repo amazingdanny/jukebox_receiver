@@ -36,7 +36,7 @@ def find_jukebox():
     if mount_point:
         print(f"mount point: {mount_point}")
         return mount_point
-    return None
+    return "No Path"
 
 LISTEN_IP = "0.0.0.0"
 LISTEN_PORT = 5000
