@@ -5,6 +5,45 @@ import threading
 import time
 from queue import Queue
 from kivy.clock import Clock, mainthread
+from mutagen import File as MutagenFile
+
+
+def get_album_art(filepath):
+    """Return (image_bytes, mime_type) for the embedded cover art of `filepath`,
+    or None if the file has no readable embedded artwork."""
+    try:
+        audio = MutagenFile(filepath)
+    except Exception:
+        return None
+    if audio is None:
+        return None
+
+    try:
+        # MP3 / ID3
+        tags = getattr(audio, 'tags', None)
+        if tags is not None and hasattr(tags, 'getall'):
+            apic_frames = tags.getall('APIC')
+            if apic_frames:
+                pic = apic_frames[0]
+                return pic.data, pic.mime
+
+        # FLAC
+        pictures = getattr(audio, 'pictures', None)
+        if pictures:
+            pic = pictures[0]
+            return pic.data, pic.mime
+
+        # MP4 / M4A
+        if tags is not None and 'covr' in tags:
+            covers = tags['covr']
+            if covers:
+                cover = covers[0]
+                mime = 'image/png' if cover.imageformat == cover.FORMAT_PNG else 'image/jpeg'
+                return bytes(cover), mime
+    except Exception:
+        pass
+
+    return None
 
 
 class AudioController:
@@ -62,6 +101,8 @@ class AudioController:
                 print("yes ui controller")
                 self.ui_controller.update_song(self.current_song)
                 self.ui_controller.update_queue(self.get_current_queue())
+                if hasattr(self.ui_controller, 'update_album_art'):
+                    self.ui_controller.update_album_art(get_album_art(filepath))
             else:
                 print("no ui controller")
 
@@ -78,6 +119,8 @@ class AudioController:
             if self.ui_controller:
                 self.ui_controller.update_song(self.current_song)
                 self.ui_controller.update_queue(self.get_current_queue())
+                if self.current_song == "No song playing" and hasattr(self.ui_controller, 'update_album_art'):
+                    self.ui_controller.update_album_art(None)
 
     # ----------------------------------------------------------------------
     # Helper methods

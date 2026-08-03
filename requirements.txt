@@ -1,3 +1,4 @@
 kivy==2.3.0
 kivy_garden
 python-vlc
+mutagen
