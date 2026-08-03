@@ -303,6 +303,20 @@ class AudioController:
             except Exception:
                 return False
 
+    def get_progress(self):
+        """Return (current_ms, total_ms) for the currently playing track, or (0, 0)
+        if nothing is playing or VLC hasn't parsed the duration yet."""
+        try:
+            if not self.player or not self.player.is_playing():
+                return 0, 0
+            length = self.player.get_length()
+            time = self.player.get_time()
+            if length and length > 0 and time is not None and time >= 0:
+                return time, length
+        except Exception:
+            pass
+        return 0, 0
+
     def get_current_file(self):
         return self.current_file
 

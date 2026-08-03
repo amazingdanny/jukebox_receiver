@@ -312,30 +312,39 @@ class VolumeSlider(Widget):
         return super().on_touch_up(touch)
 
 
-class Waveform(Widget):
-    """Decorative static equalizer-style bars under the song title."""
+class SongProgressBar(Widget):
+    """Read-only playback-position bar: a thin rounded track with a gradient fill
+    that grows to match how far into the current song playback is."""
 
-    HEIGHTS = [4, 10, 6, 14, 8, 4, 12, 6, 16, 8, 4, 10, 6, 14, 8, 4, 12, 6, 10, 4, 8, 6, 12, 4]
+    value = NumericProperty(0)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._track_h = 8
+
         with self.canvas:
-            self._color = Color(0.95, 0.45, 0.35, 0.4)
-            self._rects = [Rectangle() for _ in self.HEIGHTS]
-        self.bind(pos=self._redraw, size=self._redraw)
+            self._track_color = Color(1, 1, 1, 0.12)
+            self._track_rect = RoundedRectangle(radius=[self._track_h / 2])
+
+            fill_tex = make_diagonal_gradient_texture(SLIDER_FILL_C1, SLIDER_FILL_C2)
+            self._fill_color = Color(1, 1, 1, 1)
+            self._fill_rect = RoundedRectangle(radius=[self._track_h / 2], texture=fill_tex)
+
+        self.bind(pos=self._redraw, size=self._redraw, value=self._redraw)
 
     def _redraw(self, *args):
-        n = len(self.HEIGHTS)
-        if n == 0 or self.width <= 0:
-            return
-        gap = self.width / n
-        bar_w = max(2, gap * 0.4)
-        max_h = max(self.HEIGHTS)
-        for i, h in enumerate(self.HEIGHTS):
-            rect = self._rects[i]
-            scaled_h = (h / max_h) * self.height
-            rect.size = (bar_w, scaled_h)
-            rect.pos = (self.x + gap * i + (gap - bar_w) / 2, self.center_y - scaled_h / 2)
+        y = self.center_y - self._track_h / 2
+        self._track_rect.pos = (self.x, y)
+        self._track_rect.size = (self.width, self._track_h)
+
+        frac = max(0.0, min(1.0, self.value / 100.0))
+        fill_w = max(self._track_h, self.width * frac)
+        self._fill_rect.pos = (self.x, y)
+        self._fill_rect.size = (fill_w, self._track_h)
+
+    def set_progress(self, value):
+        """Update the fill position. `value` is a 0-100 percentage."""
+        self.value = max(0, min(100, value))
 
 
 class MusicPlayerUI(BoxLayout):
@@ -355,6 +364,7 @@ class MusicPlayerUI(BoxLayout):
         self.connection_dot = None
         self.connection_pill_color = None
         self.volume_slider = None
+        self.progress_bar = None
 
         # Dark background with soft red corner glows.
         with self.canvas.before:
@@ -378,6 +388,7 @@ class MusicPlayerUI(BoxLayout):
         self.update_song(self.current_song)
         Clock.schedule_interval(self._update_cpu_temp, 1)
         self._update_cpu_temp(0)
+        Clock.schedule_interval(self._update_progress, 0.5)
 
     def _update_bg(self, instance, value):
         self._bg_rect.pos = self.pos
@@ -486,7 +497,8 @@ class MusicPlayerUI(BoxLayout):
         self.song_label.bind(size=self._update_label_text_size)
         song_info.add_widget(self.song_label)
 
-        song_info.add_widget(Waveform(size_hint_y=0.3))
+        self.progress_bar = SongProgressBar(size_hint_y=0.3)
+        song_info.add_widget(self.progress_bar)
 
         now_playing_card.add_widget(song_info)
         self.add_widget(now_playing_card)
@@ -731,6 +743,16 @@ class MusicPlayerUI(BoxLayout):
 
     def _update_label_text_size(self, instance, value):
         instance.text_size = (value[0], None)
+
+    def _update_progress(self, dt):
+        if not self.ui_controller or not self.progress_bar:
+            return
+        getter = getattr(self.ui_controller, 'get_progress', None)
+        if not getter:
+            return
+        current_ms, total_ms = getter()
+        frac = (current_ms / total_ms * 100) if total_ms > 0 else 0
+        self.progress_bar.set_progress(frac)
 
     def _update_cpu_temp(self, dt):
         temp = self._read_cpu_temp()
