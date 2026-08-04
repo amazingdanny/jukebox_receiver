@@ -209,6 +209,16 @@ class VectorIcon(Widget):
                 Rectangle(pos=(ox, oy + s * 0.44), size=(s * 0.8, bar_h))
                 Rectangle(pos=(ox, oy + s * 0.12), size=(s * 0.6, bar_h))
 
+            elif k == 'clear':
+                Rectangle(pos=(ox + s * 0.15, oy + s * 0.78), size=(s * 0.7, s * 0.08))
+                Rectangle(pos=(ox + s * 0.38, oy + s * 0.85), size=(s * 0.24, s * 0.07))
+                Quad(points=[
+                    ox + s * 0.22, oy + s * 0.72,
+                    ox + s * 0.78, oy + s * 0.72,
+                    ox + s * 0.68, oy + s * 0.08,
+                    ox + s * 0.32, oy + s * 0.08,
+                ])
+
             elif k == 'dot':
                 Ellipse(pos=(ox, oy), size=(s, s))
 
@@ -729,19 +739,33 @@ class MusicPlayerUI(BoxLayout):
         self.add_widget(up_next_header)
 
         # ---- Queue: two columns, left fills first, overflow goes to the right ----
-        queue_area = ScrollView(size_hint_y=0.4, do_scroll_x=False)
+        queue_area = ScrollView(size_hint_y=0.34, do_scroll_x=False)
         queue_columns = BoxLayout(orientation='horizontal', spacing=16, size_hint_y=None)
         queue_columns.bind(minimum_height=queue_columns.setter('height'))
 
-        self.queue_col_left = GridLayout(cols=1, spacing=8, size_hint_y=None, size_hint_x=0.5)
+        self.queue_col_left = GridLayout(cols=1, spacing=4, size_hint_y=None, size_hint_x=0.5)
         self.queue_col_left.bind(minimum_height=self.queue_col_left.setter('height'))
-        self.queue_col_right = GridLayout(cols=1, spacing=8, size_hint_y=None, size_hint_x=0.5)
+        self.queue_col_right = GridLayout(cols=1, spacing=4, size_hint_y=None, size_hint_x=0.5)
         self.queue_col_right.bind(minimum_height=self.queue_col_right.setter('height'))
 
         queue_columns.add_widget(self.queue_col_left)
         queue_columns.add_widget(self.queue_col_right)
         queue_area.add_widget(queue_columns)
         self.add_widget(queue_area)
+
+        # ---- Clear queue button, bottom right ----
+        clear_row = BoxLayout(orientation='horizontal', size_hint_y=0.06)
+        clear_row.add_widget(Widget())
+        clear_btn = IconTextButton(
+            'clear', 'Clear Queue',
+            icon_size=Window.width * 0.018,
+            font_size=Window.width * 0.013,
+            padding_x=14,
+            size_hint_x=0.28,
+        )
+        clear_btn.bind(on_release=self._on_clear_queue)
+        clear_row.add_widget(clear_btn)
+        self.add_widget(clear_row)
 
     # -------------------------
     # Thread-safe public API
@@ -809,26 +833,40 @@ class MusicPlayerUI(BoxLayout):
         self.song_label.text = song_name
 
     def _build_queue_row(self, index, song_name):
-        row = BoxLayout(orientation='horizontal', size_hint_y=None, height=46, padding=(12, 6), spacing=12)
-        add_flat_panel(row, INSET_BG, PANEL_BORDER_LIGHT, radius=3)
+        # `slot` is an invisible full-width container so every row still stretches to
+        # fill the two-column grid consistently. `pill` — the actual visible bordered
+        # box — is sized to hug its own content (badge + text) instead of stretching
+        # all the way across, so there's no dead space after short song names.
+        slot = BoxLayout(orientation='horizontal', size_hint_y=None, height=46)
 
-        badge = BoxLayout(size_hint_x=None, width=28)
+        pill = BoxLayout(orientation='horizontal', size_hint=(None, None), height=46, padding=(10, 6), spacing=10)
+        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=3)
+
+        badge = BoxLayout(size_hint_x=None, width=26)
         add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=2)
-        badge_label = Label(text=str(index), font_size=14, color=ACCENT, bold=True)
+        badge_label = Label(text=str(index), font_size=13, color=ACCENT, bold=True)
         badge.add_widget(badge_label)
-        row.add_widget(badge)
+        pill.add_widget(badge)
 
         song_label = Label(
             text=song_name,
             font_size=Window.width * 0.016,
             color=SONG_TEXT_MUTED,
-            halign='left',
-            valign='middle',
+            size_hint=(None, None),
         )
-        song_label.bind(size=self._update_label_text_size)
-        row.add_widget(song_label)
+        song_label.texture_update()
+        song_label.size = song_label.texture_size
+        song_label.bind(texture_size=lambda inst, val: setattr(inst, 'size', val))
+        pill.add_widget(song_label)
 
-        return row
+        def _size_pill(*_args):
+            pill.width = badge.width + pill.spacing + song_label.width + pill.padding[0] * 2
+
+        song_label.bind(size=_size_pill)
+        _size_pill()
+
+        slot.add_widget(pill)
+        return slot
 
     def _on_update_queue(self, songs: List[str]):
         log.info("_on_update_queue called, count=%d", len(songs))
@@ -857,6 +895,15 @@ class MusicPlayerUI(BoxLayout):
         print("Skip button pressed")
         if self.ui_controller:
             self.ui_controller.skip()
+
+    def _on_clear_queue(self, instance):
+        """Handle clear-queue button press."""
+        print("Clear queue button pressed")
+        if self.ui_controller:
+            self.ui_controller.clear_queue()
+            # clear_queue() doesn't push a UI refresh on its own (that normally happens
+            # on the next song change), so update the on-screen list immediately here.
+            self.update_queue([])
 
     def _on_volume_drag(self, value):
         """Fired live while the user drags the volume knob or slider."""
