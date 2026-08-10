@@ -586,17 +586,32 @@ class MusicPlayerUI(BoxLayout):
         now_playing_card.add_widget(album_art)
 
         song_info = BoxLayout(orientation='vertical', size_hint_x=0.7, spacing=6)
+        now_playing_row = BoxLayout(orientation='horizontal', size_hint_y=0.25, spacing=8)
         now_playing_tag = Label(
             text="NOW PLAYING",
             font_size=Window.width * 0.013,
             color=ACCENT_DIM,
             bold=True,
-            size_hint_y=0.25,
+            size_hint_x=None,
             halign='left',
             valign='bottom',
         )
+        now_playing_tag.bind(texture_size=lambda inst, val: setattr(inst, 'width', val[0]))
         now_playing_tag.bind(size=self._update_label_text_size)
-        song_info.add_widget(now_playing_tag)
+        now_playing_row.add_widget(now_playing_tag)
+
+        self.artist_label = Label(
+            text="",
+            font_size=Window.width * 0.013,
+            color=ACCENT_DIM,
+            bold=True,
+            halign='left',
+            valign='bottom',
+        )
+        self.artist_label.bind(size=self._update_label_text_size)
+        now_playing_row.add_widget(self.artist_label)
+
+        song_info.add_widget(now_playing_row)
 
         self.song_label = Label(
             text=self.current_song,
@@ -807,6 +822,12 @@ class MusicPlayerUI(BoxLayout):
             except Exception:
                 log.warning("Failed to decode embedded album art", exc_info=True)
         self.album_art_box.add_widget(VectorIcon('vinyl', color=ACCENT, color2=ACCENT_DIM, size_hint=(1, 1)))
+
+    @mainthread
+    def update_artist(self, artist: Optional[str]):
+        """Show the song's artist tag next to the NOW PLAYING label, if known."""
+        if self.artist_label:
+            self.artist_label.text = f"- {artist}" if artist else ""
 
     def set_playing_state(self, is_playing: bool):
         """Optional method for UI state management."""

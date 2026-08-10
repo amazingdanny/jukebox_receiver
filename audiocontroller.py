@@ -46,6 +46,26 @@ def get_album_art(filepath):
     return None
 
 
+def get_artist(filepath):
+    """Return the artist tag for `filepath`, or None if it has no readable artist metadata."""
+    try:
+        audio = MutagenFile(filepath, easy=True)
+    except Exception:
+        return None
+    if audio is None or not getattr(audio, 'tags', None):
+        return None
+
+    for key in ('artist', 'albumartist'):
+        try:
+            value = audio.tags.get(key)
+        except Exception:
+            value = None
+        if value:
+            return value[0]
+
+    return None
+
+
 class AudioController:
     def __init__(self, ui_controller=None):
         self.ui_controller = ui_controller
@@ -58,7 +78,7 @@ class AudioController:
 
         # Optional: prefer ALSA output, but do not force a specific device
         try:
-            self.player.audio_output_device_set("alsa", "hw:2,0")
+            self.player.audio_output_device_set("alsa", "hw:1,0")
         except Exception:
             pass
 
@@ -103,6 +123,8 @@ class AudioController:
                 self.ui_controller.update_queue(self.get_current_queue())
                 if hasattr(self.ui_controller, 'update_album_art'):
                     self.ui_controller.update_album_art(get_album_art(filepath))
+                if hasattr(self.ui_controller, 'update_artist'):
+                    self.ui_controller.update_artist(get_artist(filepath))
             else:
                 print("no ui controller")
 
@@ -119,8 +141,11 @@ class AudioController:
             if self.ui_controller:
                 self.ui_controller.update_song(self.current_song)
                 self.ui_controller.update_queue(self.get_current_queue())
-                if self.current_song == "No song playing" and hasattr(self.ui_controller, 'update_album_art'):
-                    self.ui_controller.update_album_art(None)
+                if self.current_song == "No song playing":
+                    if hasattr(self.ui_controller, 'update_album_art'):
+                        self.ui_controller.update_album_art(None)
+                    if hasattr(self.ui_controller, 'update_artist'):
+                        self.ui_controller.update_artist(None)
 
     # ----------------------------------------------------------------------
     # Helper methods
