@@ -98,6 +98,7 @@ class AudioController:
         self.is_paused = False  # Track pause state
         self._original_song = None  # Store clean song name before "Paused: " prefix
         self.display_song = None  # For displaying pause status
+        self._last_pause_toggle = 0.0  # Debounce guard for handle_pause()
 
         # start playback loop in background
         self.thread = threading.Thread(target=self._playback_loop, daemon=True)
@@ -228,6 +229,16 @@ class AudioController:
         self.skip_flag.set()
 
     def handle_pause(self):
+        # Guard against a single physical tap being delivered as two rapid
+        # touch events (a known Kivy quirk when the mouse input provider is
+        # active alongside a touchscreen driver) — without this, the second
+        # event immediately undoes the first, so pause looks like it "does
+        # nothing" and the song reverts right after flashing "Paused: ...".
+        now = time.time()
+        if now - self._last_pause_toggle < 0.4:
+            return
+        self._last_pause_toggle = now
+
         if self.is_paused:
             self.resume()
         else:
