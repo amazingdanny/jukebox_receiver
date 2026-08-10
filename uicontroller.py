@@ -586,7 +586,7 @@ class MusicPlayerUI(BoxLayout):
         now_playing_card.add_widget(album_art)
 
         song_info = BoxLayout(orientation='vertical', size_hint_x=0.7, spacing=6)
-        now_playing_row = BoxLayout(orientation='horizontal', size_hint_y=0.25, spacing=8)
+        now_playing_row = BoxLayout(orientation='horizontal', size_hint_y=0.32, spacing=8)
         now_playing_tag = Label(
             text="NOW PLAYING",
             font_size=Window.width * 0.013,
@@ -594,7 +594,7 @@ class MusicPlayerUI(BoxLayout):
             bold=True,
             size_hint_x=None,
             halign='left',
-            valign='bottom',
+            valign='middle',
         )
         now_playing_tag.bind(texture_size=lambda inst, val: setattr(inst, 'width', val[0]))
         now_playing_tag.bind(size=self._update_label_text_size)
@@ -602,11 +602,11 @@ class MusicPlayerUI(BoxLayout):
 
         self.artist_label = Label(
             text="",
-            font_size=Window.width * 0.013,
+            font_size=Window.width * 0.017,
             color=ACCENT_DIM,
             bold=True,
             halign='left',
-            valign='bottom',
+            valign='middle',
         )
         self.artist_label.bind(size=self._update_label_text_size)
         now_playing_row.add_widget(self.artist_label)
@@ -616,7 +616,7 @@ class MusicPlayerUI(BoxLayout):
         self.song_label = Label(
             text=self.current_song,
             font_size=Window.width * 0.026,
-            size_hint_y=0.45,
+            size_hint_y=0.38,
             color=ACCENT,
             bold=True,
             halign='left',
