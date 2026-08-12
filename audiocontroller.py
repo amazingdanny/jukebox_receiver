@@ -78,7 +78,7 @@ class AudioController:
 
         # Optional: prefer ALSA output, but do not force a specific device
         try:
-            self.player.audio_output_device_set("alsa", "hw:1,0")
+            self.player.audio_output_device_set("alsa", "hw:2,0")
         except Exception:
             pass
 
@@ -99,6 +99,7 @@ class AudioController:
         self._original_song = None  # Store clean song name before "Paused: " prefix
         self.display_song = None  # For displaying pause status
         self._last_pause_toggle = 0.0  # Debounce guard for handle_pause()
+        self._artist_cache = {}  # filepath -> artist, so queue polling doesn't re-read tags
 
         # start playback loop in background
         self.thread = threading.Thread(target=self._playback_loop, daemon=True)
@@ -192,8 +193,13 @@ class AudioController:
             print(f"Playback never started for: {self.current_file}")
             return
 
-        # update queue periodically while playing
-        # Exit when playback stops and not paused, or when skip is pressed
+        # Watch for queue changes while playing (e.g. songs added via the receiver)
+        # and only push a UI update when something actually changed — update_queue()
+        # rebuilds every visible row's widgets and label textures from scratch, which
+        # is expensive enough on the Pi that polling it unconditionally every 0.2s for
+        # the whole length of every song visibly pegs a core once the queue gets long.
+        # Exit when playback stops and not paused, or when skip is pressed.
+        last_sent_queue = None
         while not self.skip_flag.is_set():
             if self.is_paused:
                 time.sleep(0.2)
@@ -201,15 +207,33 @@ class AudioController:
             if not self.is_playing():
                 break
             if self.ui_controller:
-                self.ui_controller.update_queue(self.get_current_queue())
+                current_queue = self.get_current_queue()
+                if current_queue != last_sent_queue:
+                    self.ui_controller.update_queue(current_queue)
+                    last_sent_queue = current_queue
             time.sleep(0.2)
 
+    def get_artist_cached(self, filepath):
+        """Same as get_artist(), but only reads a file's tags once."""
+        if filepath not in self._artist_cache:
+            self._artist_cache[filepath] = get_artist(filepath)
+        return self._artist_cache[filepath]
+
     def get_current_queue(self):
-        with self.queue2.mutex:
-            queue_list = list(self.queue2.queue)
-            if self.current_song and self.current_song in queue_list:
-                queue_list.remove(self.current_song)
-            return queue_list
+        """Return [(display_name, artist_or_None), ...] for everything still queued,
+        excluding the currently playing song."""
+        with self.queue.mutex, self.queue2.mutex:
+            filepaths = list(self.queue.queue)
+            names = list(self.queue2.queue)
+
+        pairs = list(zip(names, filepaths))
+        if self.current_song:
+            for i, (name, _filepath) in enumerate(pairs):
+                if name == self.current_song:
+                    del pairs[i]
+                    break
+
+        return [(name, self.get_artist_cached(filepath)) for name, filepath in pairs]
 
     # ----------------------------------------------------------------------
     # Public API

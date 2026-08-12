@@ -38,75 +38,39 @@ logging.basicConfig(level=logging.INFO)
 
 
 # ============================================================
-# Palette (Chrome Diner Jukebox theme)
+# Palette (Neon Arcade theme)
 # ============================================================
-METAL_GRADIENT_STOPS = (
-    (232, 233, 236), (196, 197, 201), (222, 223, 226),
-    (150, 151, 155), (210, 211, 214), (172, 173, 177),
-)  # smooth light/dark bands, stretched (not tiled) for a polished, unlined chrome look
+BG_SCANLINE_1 = (10, 0, 20)   # #0A0014 — near-black cabinet background
+BG_SCANLINE_2 = (4, 0, 8)     # faint darker scanline band for a CRT feel
 
-PANEL_BORDER = (0.545, 0.463, 0.302, 1)     # darker tan — key shadow edge / pressed-key feedback
-PANEL_BORDER_LIGHT = (0.663, 0.588, 0.412, 1)  # tan border used on every cream panel/key
-INSET_BG = (0.882, 0.804, 0.639, 1)         # #E1CDA3 cream — card/row/key fill
-BUTTON_FILL = (0.882, 0.804, 0.639, 1)      # #E1CDA3 cream — button/knob body fill
-BUTTON_BEVEL_LIGHT = (1, 0.976, 0.925, 1)   # near-white highlight edge, for an embossed key look
+PANEL_BORDER = (0.06, 0.0, 0.12, 1)         # very dark purple — pressed-button feedback
+PANEL_BORDER_LIGHT = (0.180, 0.878, 1.0, 1)  # #2EE0FF cyan — default panel/track border
+INSET_BG = (0.078, 0.0, 0.169, 1)           # #14002B dark purple — card/row fill
+BUTTON_FILL = (0.102, 0.0, 0.2, 1)          # #1A0033 — button/knob/pill body fill
+BUTTON_BEVEL_LIGHT = (1.0, 0.180, 0.878, 1)  # #FF2EE0 magenta — button highlight edge
 
-ACCENT = (0.478, 0.122, 0.169, 1)           # #7A1F2B deep maroon — the primary ink color
-ACCENT2 = (0.769, 0.071, 0.188, 1)          # #C41230 bright red — the "logo" accent (title only)
-ACCENT_DIM = (0.541, 0.416, 0.290, 1)       # warm brown for secondary labels
-SONG_TEXT_MUTED = (0.541, 0.416, 0.290, 1)  # queue artist names
+ACCENT = (1.0, 0.180, 0.878, 1)             # #FF2EE0 magenta — primary neon glow color
+ACCENT2 = (0.180, 0.878, 1.0, 1)            # #2EE0FF cyan — secondary neon glow color (titles, song text)
+ACCENT_DIM = (0.6, 0.35, 0.55, 1)           # muted magenta-purple for secondary labels
+SONG_TEXT_MUTED = (0.725, 0.561, 0.839, 1)  # #B98FD6 muted lavender — queue song filenames
 
-CONNECTION_ON_COLOR = (0.2, 0.6, 0.3, 1)     # green lightning bolt when connected
-CONNECTION_OFF_COLOR = (0.55, 0.5, 0.45, 1)  # muted warm grey when not connected
+CONNECTION_ON_COLOR = (0.180, 0.878, 1.0, 1)   # cyan lightning bolt when connected
+CONNECTION_OFF_COLOR = (0.5, 0.45, 0.55, 1)    # muted grey-purple when not connected
 
 
-def make_metal_gradient_texture(stops):
-    """Smooth multi-stop vertical gradient — stretched once across the full
-    background (never tiled/repeated) so the light/dark bands blend continuously,
-    like a polished curved chrome surface, with no visible lines or seams."""
-    tex = Texture.create(size=(1, len(stops)), colorfmt='rgb')
+def make_scanline_texture(base_color, line_color, tile=4):
+    """Small tileable horizontal-band texture for a CRT scanline effect."""
     buf = bytearray()
-    for c in stops:
-        buf.extend(c)
+    for y in range(tile):
+        row_color = base_color if y % 2 == 0 else line_color
+        for _x in range(tile):
+            buf.extend(row_color)
+    tex = Texture.create(size=(tile, tile), colorfmt='rgb')
     tex.blit_buffer(bytes(buf), colorfmt='rgb', bufferfmt='ubyte')
-    tex.wrap = 'clamp_to_edge'
-    tex.mag_filter = 'linear'
-    tex.min_filter = 'linear'
+    tex.wrap = 'repeat'
+    tex.mag_filter = 'nearest'
+    tex.min_filter = 'nearest'
     return tex
-
-
-def make_sheen_texture():
-    """A soft white highlight band (RGBA, transparent at both ends) stretched once
-    top-to-bottom over the brushed-metal base, to fake the reflective sheen a real
-    curved chrome surface catches unevenly."""
-    stops = [
-        (255, 255, 255, 0),
-        (255, 255, 255, 120),
-        (255, 255, 255, 30),
-        (255, 255, 255, 0),
-    ]
-    buf = bytearray()
-    for rgba in stops:
-        buf.extend(rgba)
-    tex = Texture.create(size=(1, len(stops)), colorfmt='rgba')
-    tex.blit_buffer(bytes(buf), colorfmt='rgba', bufferfmt='ubyte')
-    tex.mag_filter = 'linear'
-    tex.min_filter = 'linear'
-    return tex
-
-
-AUDIO_EXTENSIONS = ('.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac')
-
-
-def strip_extension(name):
-    """Drop a trailing audio file extension (.mp3, .wav, ...) for display, leaving
-    prefixes like "Paused: " intact since the extension is always at the very end."""
-    if not name:
-        return name
-    for ext in AUDIO_EXTENSIONS:
-        if name.lower().endswith(ext):
-            return name[:-len(ext)]
-    return name
 
 
 def add_flat_panel(widget, fill_color, border_color, border_width=1, radius=4):
@@ -530,20 +494,15 @@ class MusicPlayerUI(BoxLayout):
         self.volume_vslider = None
         self.album_art_box = None
         self.progress_bar = None
-        self.queue_columns = []
 
-        # Polished-chrome background: one smooth multi-band gradient (stretched, not
-        # tiled, so there are no lines or seams) with a soft reflective sheen layered
-        # on top, inside a thin steel-grey chassis border.
-        metal_tex = make_metal_gradient_texture(METAL_GRADIENT_STOPS)
-        sheen_tex = make_sheen_texture()
+        # Near-black cabinet background with a CRT scanline texture, inside a glowing
+        # magenta chassis border.
+        scanline_tex = make_scanline_texture(BG_SCANLINE_1, BG_SCANLINE_2)
         with self.canvas.before:
             Color(1, 1, 1, 1)
-            self._bg_rect = Rectangle(pos=self.pos, size=self.size, texture=metal_tex)
-            Color(1, 1, 1, 1)
-            self._sheen_rect = Rectangle(pos=self.pos, size=self.size, texture=sheen_tex)
-            Color(*PANEL_BORDER)
-            self._chassis_border = Line(width=2)
+            self._bg_rect = Rectangle(pos=self.pos, size=self.size, texture=scanline_tex)
+            Color(*ACCENT)
+            self._chassis_border = Line(width=3)
 
         self.bind(pos=self._update_bg, size=self._update_bg)
         self._update_bg(self, self.size)
@@ -558,10 +517,12 @@ class MusicPlayerUI(BoxLayout):
         self._bg_rect.pos = self.pos
         self._bg_rect.size = self.size
 
-        self._sheen_rect.pos = self.pos
-        self._sheen_rect.size = self.size
+        tile_screen_px = 4  # tight scanlines, a few px each
+        reps_x = max(1, self.width / tile_screen_px)
+        reps_y = max(1, self.height / tile_screen_px)
+        self._bg_rect.tex_coords = (0, 0, reps_x, 0, reps_x, reps_y, 0, reps_y)
 
-        self._chassis_border.rectangle = (self.x + 1, self.y + 1, self.width - 2, self.height - 2)
+        self._chassis_border.rectangle = (self.x + 1.5, self.y + 1.5, self.width - 3, self.height - 3)
 
     # -------------------------
     # Layout
@@ -583,7 +544,6 @@ class MusicPlayerUI(BoxLayout):
             font_size=Window.width * 0.024,
             color=ACCENT2,
             bold=True,
-            italic=True,
             size_hint=(None, None),
             pos_hint={'center_y': 0.5},
         )
@@ -794,18 +754,18 @@ class MusicPlayerUI(BoxLayout):
 
         self.add_widget(up_next_header)
 
-        # ---- Queue: three equal-width columns, filled left to right ----
+        # ---- Queue: two columns, left fills first, overflow goes to the right ----
         queue_area = ScrollView(size_hint_y=0.34, do_scroll_x=False)
         queue_columns = BoxLayout(orientation='horizontal', spacing=16, size_hint_y=None)
         queue_columns.bind(minimum_height=queue_columns.setter('height'))
 
-        self.queue_columns = []
-        for _ in range(3):
-            col = GridLayout(cols=1, spacing=4, size_hint_y=None, size_hint_x=1 / 3)
-            col.bind(minimum_height=col.setter('height'))
-            queue_columns.add_widget(col)
-            self.queue_columns.append(col)
+        self.queue_col_left = GridLayout(cols=1, spacing=4, size_hint_y=None, size_hint_x=0.5)
+        self.queue_col_left.bind(minimum_height=self.queue_col_left.setter('height'))
+        self.queue_col_right = GridLayout(cols=1, spacing=4, size_hint_y=None, size_hint_x=0.5)
+        self.queue_col_right.bind(minimum_height=self.queue_col_right.setter('height'))
 
+        queue_columns.add_widget(self.queue_col_left)
+        queue_columns.add_widget(self.queue_col_right)
         queue_area.add_widget(queue_columns)
         self.add_widget(queue_area)
 
@@ -839,9 +799,8 @@ class MusicPlayerUI(BoxLayout):
         self._on_update_song(self.current_song)
 
     @mainthread
-    def update_queue(self, songs: List):
-        """Update queue display on main thread. `songs` is a list of (name, artist)
-        tuples (artist may be None), as returned by AudioController.get_current_queue()."""
+    def update_queue(self, songs: List[str]):
+        """Update queue display on main thread."""
         print("Called update_queue")
         self._on_update_queue(list(songs or []))
 
@@ -893,89 +852,59 @@ class MusicPlayerUI(BoxLayout):
     def _on_update_song(self, song_name: str):
         print("Called _on_update_song")
         log.info(f"_on_update_song called with: {song_name!r}")
-        self.song_label.text = strip_extension(song_name)
+        self.song_label.text = song_name
 
-    def _build_queue_row(self, index, song_name, artist=None):
-        # `slot` fills its column's full width, and `pill` — the visible bordered
-        # box — now stretches to match it exactly, so every queue entry is the same
-        # uniform size regardless of how long its title/artist text is. Title and
-        # artist are stacked, like the two-line entries on a real selector card.
-        row_height = 68
+    def _build_queue_row(self, index, song_name):
+        # `slot` is an invisible full-width container so every row still stretches to
+        # fill the two-column grid consistently. `pill` — the actual visible bordered
+        # box — is sized to hug its own content (badge + text) instead of stretching
+        # all the way across, so there's no dead space after short song names.
+        slot = BoxLayout(orientation='horizontal', size_hint_y=None, height=46)
 
-        slot = BoxLayout(orientation='horizontal', size_hint_y=None, height=row_height)
+        pill = BoxLayout(orientation='horizontal', size_hint=(None, None), height=46, padding=(10, 6), spacing=10)
+        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=3)
 
-        pill = BoxLayout(orientation='horizontal', size_hint=(1, None), height=row_height, padding=(10, 6), spacing=10)
-        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=5)
-
-        badge = BoxLayout(size_hint_x=None, width=30)
-        add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=3)
+        badge = BoxLayout(size_hint_x=None, width=26)
+        add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=2)
         badge_label = Label(text=str(index), font_size=13, color=ACCENT, bold=True)
         badge.add_widget(badge_label)
         pill.add_widget(badge)
 
-        text_col = BoxLayout(orientation='vertical', size_hint=(1, None), spacing=1)
-
         song_label = Label(
             text=song_name,
             font_size=Window.width * 0.016,
-            color=ACCENT,
-            bold=True,
+            color=SONG_TEXT_MUTED,
             size_hint=(None, None),
-            halign='left',
-            valign='middle',
         )
         song_label.texture_update()
         song_label.size = song_label.texture_size
-        text_col.add_widget(song_label)
+        song_label.bind(texture_size=lambda inst, val: setattr(inst, 'size', val))
+        pill.add_widget(song_label)
 
-        artist_label = Label(
-            text=artist or "",
-            font_size=Window.width * 0.012,
-            color=SONG_TEXT_MUTED,
-            size_hint=(None, None),
-            halign='left',
-            valign='middle',
-        )
-        artist_label.texture_update()
-        artist_label.size = artist_label.texture_size
-        text_col.add_widget(artist_label)
+        def _size_pill(*_args):
+            pill.width = badge.width + pill.spacing + song_label.width + pill.padding[0] * 2
 
-        def _size_text_col(*_args):
-            text_col.height = song_label.height + artist_label.height + text_col.spacing
-
-        song_label.bind(texture_size=lambda inst, val: (setattr(inst, 'size', val), _size_text_col()))
-        artist_label.bind(texture_size=lambda inst, val: (setattr(inst, 'size', val), _size_text_col()))
-        _size_text_col()
-        pill.add_widget(text_col)
+        song_label.bind(size=_size_pill)
+        _size_pill()
 
         slot.add_widget(pill)
         return slot
 
-    def _on_update_queue(self, songs):
+    def _on_update_queue(self, songs: List[str]):
         log.info("_on_update_queue called, count=%d", len(songs))
-        for col in self.queue_columns:
-            col.clear_widgets()
+        self.queue_col_left.clear_widgets()
+        self.queue_col_right.clear_widgets()
         self.queue_count_label.text = f"{len(songs)} SONG{'S' if len(songs) != 1 else ''}"
 
-        # Each entry is (name, artist) from AudioController.get_current_queue(); plain
-        # strings (name only) are still accepted so this keeps working if that ever
-        # changes back.
-        num_columns = len(self.queue_columns) or 1
         per_column = self.QUEUE_ROWS_PER_COLUMN
-        visible = songs[:per_column * num_columns]
+        visible = songs[:per_column * 2]
+        left_songs = visible[:per_column]
+        right_songs = visible[per_column:]
 
-        def _row(i, entry):
-            if isinstance(entry, (tuple, list)):
-                name, artist = entry[0], entry[1] if len(entry) > 1 else None
-            else:
-                name, artist = entry, None
-            return self._build_queue_row(i, strip_extension(name), artist)
-
-        for col_index, col in enumerate(self.queue_columns):
-            start = col_index * per_column
-            column_songs = visible[start:start + per_column]
-            for i, s in enumerate(column_songs, start + 1):
-                col.add_widget(_row(i, s))
+        for i, s in enumerate(left_songs, 1):
+            self.queue_col_left.add_widget(self._build_queue_row(i, s))
+        for i, s in enumerate(right_songs, per_column + 1):
+            self.queue_col_right.add_widget(self._build_queue_row(i, s))
 
     def _on_pause(self, instance):
         """Handle pause button press."""
