@@ -446,7 +446,7 @@ class SongProgressBar(Widget):
 
 
 class MusicPlayerUI(BoxLayout):
-    QUEUE_ROWS_PER_COLUMN = 6
+    QUEUE_ROWS_PER_COLUMN = 4
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -833,19 +833,19 @@ class MusicPlayerUI(BoxLayout):
 
         pill = BoxLayout(
             orientation='horizontal', size_hint=(1, None), height=row_height,
-            padding=(8, 2), spacing=8,
+            padding=(12, 4), spacing=10,
         )
-        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=4)
+        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=5)
 
-        badge = BoxLayout(size_hint_x=None, width=22)
-        add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=2)
-        badge_label = Label(text=str(index), font_size=11, color=ACCENT, bold=True)
+        badge = BoxLayout(size_hint_x=None, width=30)
+        add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=3)
+        badge_label = Label(text=str(index), font_size=15, color=ACCENT, bold=True)
         badge.add_widget(badge_label)
         pill.add_widget(badge)
 
         song_label = Label(
             text=song_name,
-            font_size=Window.width * 0.013,
+            font_size=Window.width * 0.018,
             color=ACCENT,
             bold=True,
             halign='left',
@@ -860,7 +860,7 @@ class MusicPlayerUI(BoxLayout):
         if artist:
             artist_label = Label(
                 text=artist,
-                font_size=Window.width * 0.011,
+                font_size=Window.width * 0.014,
                 color=SONG_TEXT_MUTED,
                 halign='left',
                 valign='middle',
