@@ -794,19 +794,28 @@ class MusicPlayerUI(BoxLayout):
 
         self.add_widget(up_next_header)
 
-        # ---- Queue: three equal-width columns, filled left to right ----
-        queue_area = ScrollView(size_hint_y=0.34, do_scroll_x=False)
-        queue_columns = BoxLayout(orientation='horizontal', spacing=16, size_hint_y=None)
-        queue_columns.bind(minimum_height=queue_columns.setter('height'))
-
+        # ---- Queue: three equal-width columns, sized to always fit on screen — row
+        # height is computed from the actual available area (not a fixed pixel guess),
+        # so QUEUE_ROWS_PER_COLUMN rows always fit with no scrolling and nothing ever
+        # hangs off below the visible area.
+        queue_area = BoxLayout(orientation='horizontal', spacing=16, size_hint_y=0.34)
         self.queue_columns = []
+        self._last_queue = []
+        self._queue_row_height = 32  # placeholder until the first real layout pass
+
+        def _update_queue_row_height(*_args):
+            spacing = 4
+            rows = self.QUEUE_ROWS_PER_COLUMN
+            available = queue_area.height - spacing * (rows - 1)
+            self._queue_row_height = max(1, available / rows)
+            self._on_update_queue(self._last_queue)
+
         for _ in range(3):
-            col = GridLayout(cols=1, spacing=4, size_hint_y=None, size_hint_x=1 / 3)
-            col.bind(minimum_height=col.setter('height'))
-            queue_columns.add_widget(col)
+            col = BoxLayout(orientation='vertical', spacing=4, size_hint_x=1 / 3)
+            queue_area.add_widget(col)
             self.queue_columns.append(col)
 
-        queue_area.add_widget(queue_columns)
+        queue_area.bind(height=_update_queue_row_height)
         self.add_widget(queue_area)
 
         # ---- Clear queue button, bottom right ----
@@ -896,63 +905,57 @@ class MusicPlayerUI(BoxLayout):
         self.song_label.text = strip_extension(song_name)
 
     def _build_queue_row(self, index, song_name, artist=None):
-        # `slot` fills its column's full width, and `pill` — the visible bordered
-        # box — now stretches to match it exactly, so every queue entry is the same
-        # uniform size regardless of how long its title/artist text is. Title and
-        # artist are stacked, like the two-line entries on a real selector card.
-        row_height = 68
+        # Single-line entry — title and artist sit side by side instead of stacked, so
+        # each row only needs self._queue_row_height (an even share of the queue area).
+        # That's what keeps QUEUE_ROWS_PER_COLUMN rows fitting on screen with no
+        # scrolling and nothing hanging off below.
+        row_height = self._queue_row_height
 
-        slot = BoxLayout(orientation='horizontal', size_hint_y=None, height=row_height)
+        pill = BoxLayout(
+            orientation='horizontal', size_hint=(1, None), height=row_height,
+            padding=(8, 2), spacing=8,
+        )
+        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=4)
 
-        pill = BoxLayout(orientation='horizontal', size_hint=(1, None), height=row_height, padding=(10, 6), spacing=10)
-        add_flat_panel(pill, INSET_BG, PANEL_BORDER_LIGHT, radius=5)
-
-        badge = BoxLayout(size_hint_x=None, width=30)
-        add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=3)
-        badge_label = Label(text=str(index), font_size=13, color=ACCENT, bold=True)
+        badge = BoxLayout(size_hint_x=None, width=22)
+        add_flat_panel(badge, INSET_BG, ACCENT, border_width=1, radius=2)
+        badge_label = Label(text=str(index), font_size=11, color=ACCENT, bold=True)
         badge.add_widget(badge_label)
         pill.add_widget(badge)
 
-        text_col = BoxLayout(orientation='vertical', size_hint=(1, None), spacing=1)
-
         song_label = Label(
             text=song_name,
-            font_size=Window.width * 0.016,
+            font_size=Window.width * 0.013,
             color=ACCENT,
             bold=True,
-            size_hint=(None, None),
             halign='left',
             valign='middle',
+            shorten=True,
+            shorten_from='right',
+            size_hint=(0.6 if artist else 1, 1),
         )
-        song_label.texture_update()
-        song_label.size = song_label.texture_size
-        text_col.add_widget(song_label)
+        song_label.bind(size=self._update_label_text_size)
+        pill.add_widget(song_label)
 
-        artist_label = Label(
-            text=artist or "",
-            font_size=Window.width * 0.012,
-            color=SONG_TEXT_MUTED,
-            size_hint=(None, None),
-            halign='left',
-            valign='middle',
-        )
-        artist_label.texture_update()
-        artist_label.size = artist_label.texture_size
-        text_col.add_widget(artist_label)
+        if artist:
+            artist_label = Label(
+                text=artist,
+                font_size=Window.width * 0.011,
+                color=SONG_TEXT_MUTED,
+                halign='left',
+                valign='middle',
+                shorten=True,
+                shorten_from='right',
+                size_hint=(0.4, 1),
+            )
+            artist_label.bind(size=self._update_label_text_size)
+            pill.add_widget(artist_label)
 
-        def _size_text_col(*_args):
-            text_col.height = song_label.height + artist_label.height + text_col.spacing
-
-        song_label.bind(texture_size=lambda inst, val: (setattr(inst, 'size', val), _size_text_col()))
-        artist_label.bind(texture_size=lambda inst, val: (setattr(inst, 'size', val), _size_text_col()))
-        _size_text_col()
-        pill.add_widget(text_col)
-
-        slot.add_widget(pill)
-        return slot
+        return pill
 
     def _on_update_queue(self, songs):
         log.info("_on_update_queue called, count=%d", len(songs))
+        self._last_queue = songs
         for col in self.queue_columns:
             col.clear_widgets()
         self.queue_count_label.text = f"{len(songs)} SONG{'S' if len(songs) != 1 else ''}"
